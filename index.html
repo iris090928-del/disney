@@ -2,12 +2,15 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🏰 도쿄 디즈니씨 마법 지도 탐험</title>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Jua&display=swap" rel="stylesheet">
+    <!-- Firebase 실시간 라이브러리 추가 -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         
-        /* 🌊 이미지의 깊은 바다 배경 연출 */
         body { 
             background: #001220 url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80') center/cover no-repeat fixed;
             color: #fff; 
@@ -19,7 +22,6 @@
             min-height: 100vh;
         }
 
-        /* 메인 프레임 (이미지 스타일 프레임) */
         .map-card { 
             background: rgba(10, 25, 47, 0.85);
             backdrop-filter: blur(12px);
@@ -32,7 +34,6 @@
             position: relative;
         }
 
-        /* 🏰 로고 헤더 */
         .logo-area {
             text-align: center;
             border-bottom: 2px solid rgba(244, 208, 111, 0.4);
@@ -62,7 +63,6 @@
             margin-top: 5px;
         }
 
-        /* 🗺️ 디즈니씨 전용 지도판 */
         .map-board {
             position: relative;
             height: 480px;
@@ -79,7 +79,6 @@
             background: rgba(10, 20, 35, 0.6);
         }
 
-        /* 수직 이동 경로 */
         .path-line {
             position: absolute;
             left: 50%;
@@ -92,7 +91,6 @@
             border-radius: 5px;
         }
 
-        /* 목표 지점 */
         .goal-spot {
             position: absolute;
             top: 10px;
@@ -111,7 +109,6 @@
             100% { transform: translateY(-8px); }
         }
 
-        /* 지도 위 테마포트 체크포인트 */
         .port-badge {
             position: absolute;
             left: 50%;
@@ -127,7 +124,6 @@
             z-index: 2;
         }
 
-        /* 주인공 캐릭터 */
         .hero-character {
             position: absolute;
             bottom: 30px;
@@ -139,7 +135,6 @@
             filter: drop-shadow(0 0 12px #f4d06f);
         }
 
-        /* 조작부 */
         .control-panel {
             background: rgba(15, 23, 42, 0.8);
             border-radius: 20px;
@@ -176,12 +171,16 @@
             padding: 8px;
             font-weight: bold;
         }
+        .sync-status {
+            font-size: 0.7rem;
+            color: #06d6a0;
+            margin-top: 4px;
+        }
     </style>
 </head>
 <body>
 
 <div class="map-card">
-    <!-- 🏰 도쿄 디즈니씨 로고 헤더 -->
     <div class="logo-area">
         <div class="disney-sub">TOKYO</div>
         <div class="disney-title">DisneySEA ®</div>
@@ -190,7 +189,6 @@
         <p style="font-size:0.75rem; color:#a0aec0; margin-top:2px;">⏱️ 언니의 훈수 규칙: 공부 1시간 = 30km 전진!</p>
     </div>
 
-    <!-- 🗺️ 실사 지도 배경 탐험판 -->
     <div class="map-board">
         <div class="map-overlay"></div>
         <div class="path-line"></div>
@@ -200,16 +198,13 @@
             <span style="font-size:0.75rem; background:#f4d06f; color:#0d1b2a; padding:2px 8px; border-radius:10px; font-weight:bold;">판타지 스프링스</span>
         </div>
 
-        <!-- 지도 속 테마포트 지점들 -->
         <div class="port-badge" style="bottom: 360px; border-color:#ff70a6;">🧜‍♀️ 머메이드 라군 (2,250km)</div>
         <div class="port-badge" style="bottom: 240px; border-color:#f4d06f;">🕌 아라비안 코스트 (1,500km)</div>
         <div class="port-badge" style="bottom: 120px; border-color:#06d6a0;">🌋 메디테러니언 하버 (750km)</div>
 
-        <!-- 이동 캐릭터 -->
         <div class="hero-character" id="hero">⛵</div>
     </div>
 
-    <!-- 타이머 조작 패널 -->
     <div class="control-panel">
         <div class="timer" id="clock">00:00:00</div>
         
@@ -219,21 +214,37 @@
         </div>
 
         <button class="btn-quick" onclick="add(60)">🎨 미술 학원 3시간 (+60km)</button>
-        <button class="btn-quick" style="background: linear-gradient(135deg, #ff70a6, #ff85a1); color:fff;" onclick="add(25)">📝 미술 숙제 완료 (+25km)</button>
+        <button class="btn-quick" style="background: linear-gradient(135deg, #ff70a6, #ff85a1); color:#fff;" onclick="add(25)">📝 미술 숙제 완료 (+25km)</button>
+        <div class="sync-status" id="syncStatus">🔄 클라우드 연결 중...</div>
     </div>
 </div>
 
 <script>
+    // 🌐 실시간 데이터베이스 설정 (Firebase)
+    const firebaseConfig = {
+        databaseURL: "https://disney-map-default-rtdb.asia-southeast1.firebasedatabase.app"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database().ref('user_disney_km');
+
     const now = new Date();
     const endOfYear = new Date(now.getFullYear(), 11, 31);
     const diffDays = Math.ceil((endOfYear - now) / (1000 * 60 * 60 * 24));
     document.getElementById('dDayText').innerText = `✨ 올해 꿈의 왕국 도착까지 D-${diffDays}일`;
 
     const TARGET_KM = 3000;
-    let km = parseFloat(localStorage.getItem('disney_realmap_km') || 0);
+    let km = 0;
     let sec = 0, timer = null;
 
-    function update() {
+    // 📡 실시간 연동 듣기 (서버에 값이 바뀔 때마다 아이패드/핸드폰 동시 업데이트)
+    db.on('value', (snapshot) => {
+        const val = snapshot.val();
+        km = val !== null ? parseFloat(val) : 0;
+        updateUI();
+        document.getElementById('syncStatus').innerText = "🟢 실시간 멀티 연동 완료!";
+    });
+
+    function updateUI() {
         let percent = Math.min(100, (km / TARGET_KM) * 100);
         document.getElementById('kmText').innerText = `${Math.floor(km)} / ${TARGET_KM} km (${percent.toFixed(1)}%)`;
         
@@ -245,8 +256,11 @@
         else if(percent >= 50) document.getElementById('hero').innerText = "🧞‍♂️";
         else if(percent >= 25) document.getElementById('hero').innerText = "🚢";
         else document.getElementById('hero').innerText = "⛵";
+    }
 
-        localStorage.setItem('disney_realmap_km', km);
+    function saveKm(newKm) {
+        km = newKm;
+        db.set(km); // 클라우드 DB로 전송
     }
 
     function start() {
@@ -265,19 +279,16 @@
         if(!timer && sec === 0) return;
         clearInterval(timer); timer = null;
         let earned = Math.max(1, Math.round((sec / 3600) * 30));
-        km += earned; sec = 0;
+        saveKm(km + earned);
+        sec = 0;
         document.getElementById('clock').innerText = "00:00:00";
-        update(); 
-        alert(`🎉 ${earned}km 전진! 디즈니씨 지도를 따라 걸어가고 있어요!`);
+        alert(`🎉 ${earned}km 전진! 모든 기기에 실시간으로 기록되었습니다!`);
     }
 
     function add(amount) { 
-        km += amount; 
-        update(); 
+        saveKm(km + amount);
         alert(`✨ ${amount}km 전진 완료!`); 
     }
-
-    update();
 </script>
 </body>
 </html>
