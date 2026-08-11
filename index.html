@@ -213,14 +213,17 @@
             <button class="btn-save" onclick="stop()">⏹️ 기록 및 전진</button>
         </div>
 
-        <button class="btn-quick" onclick="add(60)">🎨 미술 학원 3시간 (+60km)</button>
-        <button class="btn-quick" style="background: linear-gradient(135deg, #ff70a6, #ff85a1); color:#fff;" onclick="add(25)">📝 미술 숙제 완료 (+25km)</button>
+        <!-- 🎨 훈수 규칙 맞춤형 버튼 보상 -->
+        <button class="btn-quick" onclick="add(30)">🎨 미술 학원 3시간 다녀옴 (+30km)</button>
+        <button class="btn-quick" style="background: linear-gradient(135deg, #ff70a6, #ff85a1); color:#fff;" onclick="add(25)">📝 미술 숙제 완벽 완료 (+25km)</button>
+        
         <div class="sync-status" id="syncStatus">🔄 연결 중...</div>
     </div>
 </div>
 
 <script>
-    // ⚠️ 208번째 줄: 큰따옴표("") 안에 복사해 오신 Firebase 주소를 정확히 넣어주세요!
+    // 🌐 실시간 데이터베이스 설정 (Firebase)
+    // ⚠️ 210번째 줄: 큰따옴표("") 안에 복사해 오신 Firebase 주소를 정확히 넣어주세요!
     const firebaseConfig = {
         databaseURL: "https://my-disney-map-8c395-default-rtdb.firebaseio.com/"
     };
