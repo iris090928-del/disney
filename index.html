@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🏰 도쿄 디즈니씨 마법 지도 탐험</title>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Jua&display=swap" rel="stylesheet">
-    <!-- Firebase 실시간 라이브러리 추가 -->
+    <!-- Firebase 실시간 라이브러리 -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
@@ -215,17 +215,23 @@
 
         <button class="btn-quick" onclick="add(60)">🎨 미술 학원 3시간 (+60km)</button>
         <button class="btn-quick" style="background: linear-gradient(135deg, #ff70a6, #ff85a1); color:#fff;" onclick="add(25)">📝 미술 숙제 완료 (+25km)</button>
-        <div class="sync-status" id="syncStatus">🔄 클라우드 연결 중...</div>
+        <div class="sync-status" id="syncStatus">🔄 연결 중...</div>
     </div>
 </div>
 
 <script>
-    // 🌐 실시간 데이터베이스 설정 (Firebase)
+    // ⚠️ 208번째 줄: 큰따옴표("") 안에 복사해 오신 Firebase 주소를 정확히 넣어주세요!
     const firebaseConfig = {
-        databaseURL: "https://my-disney=map-8c395-default-rtdb.firebaseio.com/:"
+        databaseURL: "여기에_복사한_나만의_firebase_주소_붙여넣기"
     };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database().ref('user_disney_km');
+
+    let db = null;
+    try {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.database().ref('user_disney_km');
+    } catch(e) {
+        console.log("Firebase 연결 오류:", e);
+    }
 
     const now = new Date();
     const endOfYear = new Date(now.getFullYear(), 11, 31);
@@ -233,16 +239,25 @@
     document.getElementById('dDayText').innerText = `✨ 올해 꿈의 왕국 도착까지 D-${diffDays}일`;
 
     const TARGET_KM = 3000;
-    let km = 0;
+    let km = parseFloat(localStorage.getItem('disney_fallback_km') || 0);
     let sec = 0, timer = null;
 
-    // 📡 실시간 연동 듣기 (서버에 값이 바뀔 때마다 아이패드/핸드폰 동시 업데이트)
-    db.on('value', (snapshot) => {
-        const val = snapshot.val();
-        km = val !== null ? parseFloat(val) : 0;
-        updateUI();
-        document.getElementById('syncStatus').innerText = "🟢 실시간 멀티 연동 완료!";
-    });
+    updateUI();
+
+    if (db) {
+        db.on('value', (snapshot) => {
+            const val = snapshot.val();
+            if (val !== null) {
+                km = parseFloat(val);
+                updateUI();
+            }
+            document.getElementById('syncStatus').innerText = "🟢 실시간 멀티 연동 완료!";
+        }, (error) => {
+            document.getElementById('syncStatus').innerText = "🟡 오프라인 모드 (기기 내 저장)";
+        });
+    } else {
+        document.getElementById('syncStatus').innerText = "🟡 오프라인 모드 (기기 내 저장)";
+    }
 
     function updateUI() {
         let percent = Math.min(100, (km / TARGET_KM) * 100);
@@ -256,11 +271,16 @@
         else if(percent >= 50) document.getElementById('hero').innerText = "🧞‍♂️";
         else if(percent >= 25) document.getElementById('hero').innerText = "🚢";
         else document.getElementById('hero').innerText = "⛵";
+
+        localStorage.setItem('disney_fallback_km', km);
     }
 
     function saveKm(newKm) {
         km = newKm;
-        db.set(km); // 클라우드 DB로 전송
+        updateUI();
+        if (db) {
+            db.set(km);
+        }
     }
 
     function start() {
@@ -282,7 +302,7 @@
         saveKm(km + earned);
         sec = 0;
         document.getElementById('clock').innerText = "00:00:00";
-        alert(`🎉 ${earned}km 전진! 모든 기기에 실시간으로 기록되었습니다!`);
+        alert(`🎉 ${earned}km 전진 완료!`);
     }
 
     function add(amount) { 
