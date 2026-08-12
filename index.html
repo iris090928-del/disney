@@ -213,7 +213,6 @@
             <button class="btn-save" onclick="stop()">⏹️ 기록 및 전진</button>
         </div>
 
-        <!-- 🎨 훈수 규칙 맞춤형 버튼 보상 -->
         <button class="btn-quick" onclick="add(30)">🎨 미술 학원 3시간 다녀옴 (+30km)</button>
         <button class="btn-quick" style="background: linear-gradient(135deg, #ff70a6, #ff85a1); color:#fff;" onclick="add(25)">📝 미술 숙제 완벽 완료 (+25km)</button>
         
@@ -223,7 +222,7 @@
 
 <script>
     // 🌐 실시간 데이터베이스 설정 (Firebase)
-    // ⚠️ 210번째 줄: 큰따옴표("") 안에 복사해 오신 Firebase 주소를 정확히 넣어주세요!
+    // ⚠️ 218번째 줄: 큰따옴표("") 안에 복사해 오신 Firebase 주소를 정확히 넣어주세요!
     const firebaseConfig = {
         databaseURL: "https://my-disney-map-8c395-default-rtdb.firebaseio.com/"
     };
@@ -243,7 +242,8 @@
 
     const TARGET_KM = 3000;
     let km = parseFloat(localStorage.getItem('disney_fallback_km') || 0);
-    let sec = 0, timer = null;
+    let timer = null;
+    let startTime = null; // 공부 시작한 시각 저장 변수
 
     updateUI();
 
@@ -286,26 +286,33 @@
         }
     }
 
+    // ⏱️ 화면이 꺼져도 실제 시각을 기준으로 정확히 계산하는 자바스크립트 로직
     function start() {
-        if(!timer) {
+        if(!startTime) {
+            startTime = Date.now();
             timer = setInterval(() => { 
-                sec++; 
-                let hrs = String(Math.floor(sec / 3600)).padStart(2, '0');
-                let mins = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
-                let secs = String(sec % 60).padStart(2, '0');
+                let elapsedSec = Math.floor((Date.now() - startTime) / 1000);
+                let hrs = String(Math.floor(elapsedSec / 3600)).padStart(2, '0');
+                let mins = String(Math.floor((elapsedSec % 3600) / 60)).padStart(2, '0');
+                let secs = String(elapsedSec % 60).padStart(2, '0');
                 document.getElementById('clock').innerText = `${hrs}:${mins}:${secs}`; 
             }, 1000);
+            alert("▶️ 공부 타이머 시작! 화면을 꺼두거나 다른 앱을 켜도 시간이 정확하게 기록됩니다.");
         }
     }
 
     function stop() {
-        if(!timer && sec === 0) return;
-        clearInterval(timer); timer = null;
-        let earned = Math.max(1, Math.round((sec / 3600) * 30));
+        if(!startTime) return;
+        clearInterval(timer);
+        timer = null;
+        
+        let totalSec = Math.floor((Date.now() - startTime) / 1000);
+        let earned = Math.max(1, Math.round((totalSec / 3600) * 30));
+        
         saveKm(km + earned);
-        sec = 0;
+        startTime = null;
         document.getElementById('clock').innerText = "00:00:00";
-        alert(`🎉 ${earned}km 전진 완료!`);
+        alert(`🎉 ${earned}km 전진 완료! (공부한 시간만큼 정확하게 적용되었습니다)`);
     }
 
     function add(amount) { 
